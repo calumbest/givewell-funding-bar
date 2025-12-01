@@ -20,23 +20,28 @@ function App() {
   const maxGap = Math.max(...opportunities.map(o => o.gap));
   const totalGap = opportunities.reduce((sum, o) => sum + o.gap, 0);
   
+  // Special case: when funding is $0, show all buckets as unfunded
+  const isZeroFunding = availableFunding === 0;
+
   // Calculate where funding runs out and what the bar is
   let cumulative = 0;
   let barLevel = null;
   let fundingCutoffIndex = -1;
-  
-  for (let i = 0; i < opportunities.length; i++) {
-    if (cumulative + opportunities[i].gap >= availableFunding && barLevel === null) {
-      barLevel = opportunities[i].ce;
-      fundingCutoffIndex = i;
+
+  if (!isZeroFunding) {
+    for (let i = 0; i < opportunities.length; i++) {
+      if (cumulative + opportunities[i].gap >= availableFunding && barLevel === null) {
+        barLevel = opportunities[i].ce;
+        fundingCutoffIndex = i;
+      }
+      cumulative += opportunities[i].gap;
     }
-    cumulative += opportunities[i].gap;
-  }
-  
-  // If we can fund everything
-  if (barLevel === null && availableFunding >= totalGap) {
-    barLevel = opportunities[opportunities.length - 1].ce;
-    fundingCutoffIndex = opportunities.length - 1;
+
+    // If we can fund everything
+    if (barLevel === null && availableFunding >= totalGap) {
+      barLevel = opportunities[opportunities.length - 1].ce;
+      fundingCutoffIndex = opportunities.length - 1;
+    }
   }
   
   const barWidth = 72;
@@ -120,7 +125,9 @@ function App() {
                 const height = (opp.gap / maxGap) * (chartHeight - 20);
                 const isFunded = i <= fundingCutoffIndex;
                 const isBarLevel = i === fundingCutoffIndex;
-                
+                // When funding is $0, show all bars as fully colored
+                const barOpacity = isZeroFunding ? 1 : (isFunded ? 1 : 0.35);
+
                 return (
                   <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <div style={{
@@ -128,7 +135,7 @@ function App() {
                       height: `${height}px`,
                       backgroundColor: opp.color,
                       borderRadius: '4px 4px 0 0',
-                      opacity: isFunded ? 1 : 0.35,
+                      opacity: barOpacity,
                       position: 'relative',
                       transition: 'opacity 0.3s ease'
                     }}>
@@ -144,9 +151,9 @@ function App() {
                       }}>
                         ${opp.gap}M
                       </div>
-                      
-                      {/* Bar indicator */}
-                      {isBarLevel && (
+
+                      {/* Bar indicator - only show when not at $0 */}
+                      {isBarLevel && !isZeroFunding && (
                         <div style={{
                           position: 'absolute',
                           top: '-28px',
@@ -176,17 +183,22 @@ function App() {
               gap: `${barSpacing}px`,
               marginTop: '8px'
             }}>
-              {opportunities.map((opp, i) => (
-                <div key={i} style={{
-                  width: `${barWidth}px`,
-                  textAlign: 'center',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: i <= fundingCutoffIndex ? '#1a1a1a' : '#999'
-                }}>
-                  {opp.ce}
-                </div>
-              ))}
+              {opportunities.map((opp, i) => {
+                // When funding is $0, show all labels as colored
+                const labelColor = isZeroFunding ? '#1a1a1a' : (i <= fundingCutoffIndex ? '#1a1a1a' : '#999');
+
+                return (
+                  <div key={i} style={{
+                    width: `${barWidth}px`,
+                    textAlign: 'center',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    color: labelColor
+                  }}>
+                    {opp.ce}
+                  </div>
+                );
+              })}
             </div>
             
             {/* X-axis label */}
@@ -228,7 +240,7 @@ function App() {
             </label>
             <input
               type="range"
-              min="50"
+              min="0"
               max="550"
               step="10"
               value={availableFunding}
@@ -240,14 +252,14 @@ function App() {
                 cursor: 'pointer'
               }}
             />
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              fontSize: '11px', 
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: '11px',
               color: '#999',
               marginTop: '4px'
             }}>
-              <span>$50M</span>
+              <span>$0</span>
               <span>$550M</span>
             </div>
           </div>
